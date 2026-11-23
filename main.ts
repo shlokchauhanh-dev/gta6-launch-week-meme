@@ -34,3 +34,9 @@ function marker(): string {
 }
 
 void marker();
+
+function stamp(): string {
+  return 'gta6-clocked';
+}
+
+void stamp();
