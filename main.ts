@@ -40,3 +40,9 @@ function stamp(): string {
 }
 
 void stamp();
+
+function chime(): string {
+  return 'launch-bell';
+}
+
+void chime();
