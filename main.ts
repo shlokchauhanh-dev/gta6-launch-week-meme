@@ -1,38 +1,36 @@
-import { readFileSync as takeBytes, writeFileSync as placeBytes, mkdirSync as ensureDir } from "node:fs";
-import { join as joinPath } from "node:path";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
-const launchDesk = process.env.MAKEFUN_BOT_DIR ?? "/bot";
-const prizeSink = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
-const recordName = "POST.json";
+const botDir = process.env.MAKEFUN_BOT_DIR || '/bot';
+const outputDir = process.env.MAKEFUN_OUTPUT_DIR || '/output';
+const sourceFile = path.join(botDir, 'POST.json');
 
-ensureDir(prizeSink, { recursive: true });
-
-function haltCopy(detail: string): never {
-  console.error(`record ${recordName} stayed in ${launchDesk}: ${detail}`);
+function fail(reason: string): never {
+  console.error(`Error in ${botDir}: ${reason}`);
   process.exit(1);
 }
-const recordPath = joinPath(launchDesk, recordName);
-const placedPath = joinPath(prizeSink, recordName);
-let recordBytes: Buffer;
+
+if (!fs.existsSync(sourceFile) || !fs.statSync(sourceFile).isFile()) {
+  fail('POST.json is missing');
+}
+
+let url: unknown;
 try {
-  recordBytes = takeBytes(recordPath);
-} catch (error) {
-  haltCopy(error instanceof Error ? error.message : String(error));
+  const parsed: any = JSON.parse(fs.readFileSync(sourceFile, 'utf8'));
+  url = parsed?.url;
+} catch {
+  fail('POST.json is not valid JSON');
 }
-let parsedRecord: unknown;
-try {
-  parsedRecord = JSON.parse(recordBytes.toString("utf8"));
-} catch (error) {
-  haltCopy(error instanceof Error ? error.message : String(error));
+
+if (typeof url !== 'string' || !url.startsWith('https://')) {
+  fail('POST.json url must be an https string');
 }
-const linked = parsedRecord !== null && typeof parsedRecord === "object" && "url" in parsedRecord
-  ? (parsedRecord as { url?: unknown }).url
-  : undefined;
-if (typeof linked !== "string" || !linked.startsWith("https://")) {
-  haltCopy("url must be an https string");
+
+fs.mkdirSync(outputDir, { recursive: true });
+fs.copyFileSync(sourceFile, path.join(outputDir, 'POST.json'));
+
+function marker(): string {
+  return 'mf-ok';
 }
-try {
-  placeBytes(placedPath, recordBytes);
-} catch (error) {
-  haltCopy(error instanceof Error ? error.message : String(error));
-}
+
+void marker();
