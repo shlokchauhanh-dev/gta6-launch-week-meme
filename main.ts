@@ -1,42 +1,38 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync as takeBytes, writeFileSync as placeBytes, mkdirSync as ensureDir } from "node:fs";
+import { join as joinPath } from "node:path";
 
-const botDir = process.env.MAKEFUN_BOT_DIR ?? "/bot";
-const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
+const launchDesk = process.env.MAKEFUN_BOT_DIR ?? "/bot";
+const prizeSink = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
+const recordName = "POST.json";
 
-mkdirSync(outputDir, { recursive: true });
+ensureDir(prizeSink, { recursive: true });
 
-const sourcePath = join(botDir, "POST.json");
-const targetPath = join(outputDir, "POST.json");
-
-function stop(detail: string): never {
-  console.error(`POST.json could not be copied from ${botDir}: ${detail}`);
+function haltCopy(detail: string): never {
+  console.error(`record ${recordName} stayed in ${launchDesk}: ${detail}`);
   process.exit(1);
 }
-
-let payload: Buffer;
+const recordPath = joinPath(launchDesk, recordName);
+const placedPath = joinPath(prizeSink, recordName);
+let recordBytes: Buffer;
 try {
-  payload = readFileSync(sourcePath);
+  recordBytes = takeBytes(recordPath);
 } catch (error) {
-  stop(error instanceof Error ? error.message : String(error));
+  haltCopy(error instanceof Error ? error.message : String(error));
 }
-
-let parsed: unknown;
+let parsedRecord: unknown;
 try {
-  parsed = JSON.parse(payload.toString("utf8"));
+  parsedRecord = JSON.parse(recordBytes.toString("utf8"));
 } catch (error) {
-  stop(error instanceof Error ? error.message : String(error));
+  haltCopy(error instanceof Error ? error.message : String(error));
 }
-
-const url = parsed !== null && typeof parsed === "object" && "url" in parsed
-  ? (parsed as { url?: unknown }).url
+const linked = parsedRecord !== null && typeof parsedRecord === "object" && "url" in parsedRecord
+  ? (parsedRecord as { url?: unknown }).url
   : undefined;
-if (typeof url !== "string" || !url.startsWith("https://")) {
-  stop("url must be an https string");
+if (typeof linked !== "string" || !linked.startsWith("https://")) {
+  haltCopy("url must be an https string");
 }
-
 try {
-  writeFileSync(targetPath, payload);
+  placeBytes(placedPath, recordBytes);
 } catch (error) {
-  stop(error instanceof Error ? error.message : String(error));
+  haltCopy(error instanceof Error ? error.message : String(error));
 }
